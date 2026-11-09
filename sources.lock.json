@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "note": "Third-party sources are NOT stored in this repo: install.mjs fetches each one at the exact commit below. A commit is only changed after the new content has been reviewed (see README, 'Updating a source').",
+  "sources": {
+    "superpowers": {
+      "repo": "https://github.com/obra/superpowers",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT",
+      "reviewed": "2026-11-09",
+      "skills": {
+        "from": "skills",
+        "names": "*"
+      },
+      "support": [
+        {
+          "from": "hooks",
+          "to": "superpowers/hooks"
+        },
+        {
+          "from": "skills/using-superpowers",
+          "to": "superpowers/skills/using-superpowers"
+        }
+      ]
+    },
+    "anthropic-skills": {
+      "repo": "https://github.com/anthropics/skills",
+      "commit": "2c5958ecac7cee2b583967a2c4981d0f4a75c579",
+      "license": "none declared in the repository: fetched at install time, never redistributed",
+      "reviewed": "2026-11-09",
+      "skills": {
+        "from": "skills",
+        "names": [
+          "skill-creator",
+          "claude-api",
+          "mcp-builder",
+          "webapp-testing",
+          "frontend-design"
+        ]
+      }
+    },
+    "wshobson-agents": {
+      "repo": "https://github.com/wshobson/agents",
+      "commit": "9c61ab243def98f72da12abd41cfcf5bcd91af9d",
+      "license": "MIT",
+      "reviewed": "2026-11-09",
+      "plugins": {
+        "from": "plugins",
+        "names": [
+          "c4-architecture",
+          "backend-api-security",
+          "security-scanning",
+          "comprehensive-review",
+          "cicd-automation",
+          "documentation-standards",
+          "frontend-mobile-security",
+          "accessibility-compliance",
+          "database-design",
+          "database-migrations",
+          "dependency-management",
+          "documentation-generation",
+          "security-compliance",
+          "dotnet-contribution"
+        ]
+      }
+    },
+    "trailofbits-skills": {
+      "repo": "https://github.com/trailofbits/skills",
+      "commit": "e4dd0bb5b15535f7c5a0834187dffba6ac37e4ff",
+      "license": "CC BY-SA 4.0",
+      "reviewed": "2026-11-09",
+      "plugins": {
+        "from": "plugins",
+        "skillsOnly": true,
+        "names": [
+          "sharp-edges",
+          "differential-review",
+          "supply-chain-risk-auditor",
+          "agentic-actions-auditor"
+        ]
+      }
+    }
+  },
+  "agentToolRestrictions": {
+    "tools": "Read, Grep, Glob, Bash",
+    "agents": [
+      "architect-review",
+      "code-reviewer",
+      "comprehensive-review-security-auditor",
+      "security-auditor",
+      "security-compliance-security-auditor",
+      "threat-modeling-expert",
+      "ui-visual-validator"
+    ]
+  }
+}

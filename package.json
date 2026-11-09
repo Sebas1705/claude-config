@@ -1,0 +1,16 @@
+{
+  "name": "claude-config",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Claude Code configuration (guard hook, deny rules, pinned skills) installable on any machine with one command",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test",
+    "install:dry": "node install.mjs --dry-run",
+    "install:config": "node install.mjs",
+    "status": "node install.mjs --status",
+    "uninstall": "node install.mjs --uninstall"
+  },
+  "license": "MIT"
+}

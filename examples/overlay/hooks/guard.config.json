@@ -1,0 +1,4 @@
+{
+  "blockCommitTrailers": true,
+  "protectedBranches": ["main", "master", "release"]
+}

@@ -1,0 +1,5 @@
+{
+  "note": "Example overlay. Copy this folder, edit it, and apply it with: node install.mjs --overlay <your folder>",
+  "retire": { "skills": [] },
+  "agentToolRestrictions": { "agents": [] }
+}
