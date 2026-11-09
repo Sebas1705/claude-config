@@ -8,7 +8,9 @@
  *   node install.mjs --status        check that what was installed is still there
  *   node install.mjs --uninstall     remove exactly what the installer added
  *
- * Options: --home <dir>  --lock <file>  --only <source,source>  --overlay <dir>  --no-hook  --no-claude-md  --retire  --json
+ * Options: --home <dir>  --lock <file>  --only <source,source>  --overlay <dir>  --profile <name>  --no-overlay  --no-hook
+ *          --no-claude-md  --retire  --json
+ * An overlay is also picked up from $CLAUDE_CONFIG_OVERLAY when none of --overlay/--profile/--no-overlay is given.
  *
  * Third-party sources are fetched at the commits pinned in sources.lock.json. Nothing fetched is ever executed by this
  * script: it only copies files. Node 18+ and git are the only requirements.
@@ -30,7 +32,7 @@ const sameFile = (a, b) => fs.statSync(a).isFile() && fs.statSync(b).isFile() &&
 const within = (parent, child) => { const r = path.relative(parent, child); return !!r && !r.startsWith('..') && !path.isAbsolute(r) }
 
 export function parseArgs(argv) {
-  const o = { dryRun: false, uninstall: false, status: false, noHook: false, retire: false, json: false, noClaudeMd: false, only: null, home: null, lock: null, overlay: null }
+  const o = { dryRun: false, uninstall: false, status: false, noHook: false, retire: false, json: false, noClaudeMd: false, noOverlay: false, only: null, home: null, lock: null, overlay: null, profile: null }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--dry-run') o.dryRun = true
@@ -39,6 +41,8 @@ export function parseArgs(argv) {
     else if (a === '--no-hook') o.noHook = true
     else if (a === '--no-claude-md') o.noClaudeMd = true
     else if (a === '--overlay') o.overlay = argv[++i]
+    else if (a === '--profile') o.profile = argv[++i]
+    else if (a === '--no-overlay') o.noOverlay = true
     else if (a === '--retire') o.retire = true
     else if (a === '--json') o.json = true
     else if (a === '--only') o.only = String(argv[++i] || '').split(',').filter(Boolean)
@@ -48,6 +52,26 @@ export function parseArgs(argv) {
     else throw new Error(`Unknown option: ${a}`)
   }
   return o
+}
+
+/**
+ * Which overlay folder applies: --no-overlay wins, then --overlay <dir>, then --profile <name> (a folder under profiles/),
+ * then , so a machine can have its own overlay as the default without any flag.
+ */
+export function resolveOverlay(opts, env = process.env) {
+  if (opts.overlay && opts.profile) throw new Error('Use either --overlay or --profile, not both')
+  if (opts.noOverlay) return null
+  if (opts.overlay) return path.resolve(opts.overlay)
+  if (opts.profile) {
+    const dir = path.join(ROOT, 'profiles', opts.profile)
+    if (!/^[A-Za-z0-9._-]+$/.test(opts.profile) || !fs.existsSync(dir)) {
+      const have = fs.existsSync(path.join(ROOT, 'profiles')) ? listDirs(path.join(ROOT, 'profiles')) : []
+      throw new Error(`Unknown profile: ${opts.profile} (available: ${have.join(', ') || 'none'})`)
+    }
+    return dir
+  }
+  if (env.CLAUDE_CONFIG_OVERLAY) return path.resolve(env.CLAUDE_CONFIG_OVERLAY)
+  return null
 }
 
 export function resolveHome(opts) {
@@ -270,7 +294,7 @@ export function run(opts, log = console.log) {
   if (opts.uninstall) return uninstall(home, prev, manifestFile, log, result, opts.dryRun)
 
   // An overlay is a private folder with the same layout as config/ (plus an optional overlay.json for extra sources)
-  const overlayDir = opts.overlay ? path.resolve(opts.overlay) : null
+  const overlayDir = resolveOverlay(opts)
   if (overlayDir && !fs.existsSync(overlayDir)) throw new Error(`Overlay folder not found: ${overlayDir}`)
   const overlayJson = overlayDir && fs.existsSync(path.join(overlayDir, 'overlay.json')) ? readJson(path.join(overlayDir, 'overlay.json')) : null
   const lock = mergeLock(readJson(lockFile), overlayJson)
@@ -280,6 +304,7 @@ export function run(opts, log = console.log) {
   const ownedBefore = new Set((prev ? prev.installed : []).map(i => i.dest))
 
   log(`${opts.dryRun ? '[dry run] ' : ''}Claude folder: ${home}`)
+  if (overlayDir) log(`Overlay: ${overlayDir}`)
   const cacheRoot = path.join(os.tmpdir(), 'claude-config-cache')
   const ops = []
   for (const id of ids) ops.push(...planSource(id, lock.sources[id], fetchSource(id, lock.sources[id], cacheRoot, log), home, ownedBefore))

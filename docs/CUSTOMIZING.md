@@ -10,6 +10,36 @@ node install.mjs --overlay ../claude-config-personal
 
 Re-run the same command to update. Without `--overlay` you get the plain defaults. A starting point lives in [`examples/overlay/`](../examples/overlay): copy it and edit.
 
+## Three ways to choose an overlay
+
+| How | When |
+|---|---|
+| `--overlay <dir>` | Any folder, for example your private overlay repository |
+| `--profile <name>` | A profile published in this repository under `profiles/<name>` (`--profile sebas` is the author's) |
+| `CLAUDE_CONFIG_OVERLAY=<dir>` | Your default on a machine: used when none of the flags above is given, so a plain `node install.mjs` applies your overlay |
+
+`--no-overlay` ignores all of them, and `--overlay` with `--profile` is an error. A profile name can only be a folder name inside `profiles/`.
+
+Set the default once per machine:
+
+```sh
+# macOS / Linux (add to ~/.zshrc or ~/.bashrc)
+export CLAUDE_CONFIG_OVERLAY="$HOME/Documents/Repos/my-claude-overlay"
+
+# Windows PowerShell (persists for your user)
+[Environment]::SetEnvironmentVariable("CLAUDE_CONFIG_OVERLAY", "$HOMEDocumentsReposmy-claude-overlay", "User")
+```
+
+## What to keep out of a public overlay
+
+If you publish your overlay (as `profiles/sebas` is), read every file first. Skills and rules describe how you work, and a description of how you work can reveal what you would rather not publish:
+
+- names or details of private projects, customers or employers;
+- where your secrets live: secrets-manager project names, CI secret names, which artifact embeds a credential;
+- internal URLs, absolute paths on your machine, e-mail addresses (a commit author is also published: use your GitHub no-reply address).
+
+Keep that in a **private** overlay and set it as your default with `CLAUDE_CONFIG_OVERLAY`. This repository's tests can enforce it: list the terms that must never be published, one per line, in an untracked `.privacy-terms` file and `npm test` fails if any tracked file contains one (the file is ignored by git, so the terms are not published either).
+
 ## Layout of an overlay
 
 Every file is optional.
@@ -84,6 +114,10 @@ Put `hooks/guard.config.json` in your overlay:
 ```
 
 See the rule table in the [README](../README.md#the-guard-hook).
+
+## Several overlays
+
+One overlay is applied per run. To combine a public profile with private additions, make the private overlay start from a copy of the profile, or keep the shared part in the profile and run the installer twice with different `--overlay` values (the second run adds its files and rules; `CLAUDE.md` is replaced by the last overlay that has one).
 
 ## Fork instead?
 

@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-11-09
+
+### Added
+- `--profile <name>` to apply a published profile from `profiles/`, `--no-overlay`, and the `CLAUDE_CONFIG_OVERLAY` environment variable as a per-machine default overlay.
+- `profiles/sebas`: the author's own setup, sanitised for publication.
+- A privacy test driven by an untracked `.privacy-terms` file, and a check for personal paths, e-mail addresses and tokens in every published file.
+
+### Fixed
+- Uninstall restores retired skills even when their parent folder was pruned.
+
 ## [1.0.0] - 2026-11-09
 
 ### Added

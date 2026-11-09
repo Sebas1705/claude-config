@@ -1,0 +1,40 @@
+{
+  "note": "Sebas profile. Apply with: node install.mjs --profile sebas",
+  "retire": {
+    "note": "Optional (--retire). Skills that overlap with superpowers or that Sebas does not use; they are moved to skills-removed/, never deleted.",
+    "skills": [
+      "mobiai-mobile-brainstorming",
+      "mobiai-mobile-planning",
+      "mobiai-mobile-tdd",
+      "mobiai-mobile-debugging",
+      "mobiai-mobile-verification",
+      "mobiai-mobile-executing-plans",
+      "mobiai-mobile-executing-plans-with-subagents",
+      "mobiai-mobile-parallel-agents",
+      "mobiai-mobile-worktrees",
+      "mobiai-mobile-finishing-branch",
+      "mobiai-fix-issue",
+      "mobiai-write-tests",
+      "mobiai-writing-skills",
+      "mobiai-reproduce-bug",
+      "mobiai-analyze-crash",
+      "using-mobiai",
+      "mobiai-update",
+      "mobiai-brain",
+      "mobiai-flutter",
+      "mobiai-react-native",
+      "mobiai-create-pr",
+      "cloudflare-one",
+      "cloudflare-one-migrations",
+      "cloudflare-email-service",
+      "turnstile-spin",
+      "sandbox-sdk",
+      "agents-sdk",
+      "durable-objects",
+      "archify",
+      "brand-guidelines",
+      "canvas-design",
+      "theme-factory"
+    ]
+  }
+}

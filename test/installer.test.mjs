@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { run, mergeClaudeMd, removeClaudeMdBlock, mergeSettings, removeFromSettings, restrictAgent, parseArgs, mergeLock, mergeFragments } from '../install.mjs'
+import { run, mergeClaudeMd, removeClaudeMdBlock, mergeSettings, removeFromSettings, restrictAgent, parseArgs, mergeLock, mergeFragments, resolveOverlay } from '../install.mjs'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const quiet = () => {}
@@ -241,6 +241,44 @@ test('the example overlay shipped in examples/ installs and uninstalls cleanly',
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(home, 'hooks', 'guard.config.json'), 'utf8')).protectedBranches, ['main', 'master', 'release'])
   run(opts(home, { overlay, uninstall: true }), quiet)
   assert.ok(!fs.existsSync(path.join(home, 'skills', 'team-conventions')))
+})
+
+test('resolveOverlay: --no-overlay beats everything, then --overlay, --profile and CLAUDE_CONFIG_OVERLAY', () => {
+  const env = { CLAUDE_CONFIG_OVERLAY: path.join(tmp, 'from-env') }
+  assert.equal(resolveOverlay({}, {}), null)
+  assert.equal(resolveOverlay({}, env), path.resolve(env.CLAUDE_CONFIG_OVERLAY))
+  assert.equal(resolveOverlay({ overlay: 'x' }, env), path.resolve('x'))
+  assert.equal(resolveOverlay({ profile: 'sebas' }, env), path.join(ROOT, 'profiles', 'sebas'))
+  assert.equal(resolveOverlay({ noOverlay: true, overlay: 'x' }, env), null)
+  assert.throws(() => resolveOverlay({ overlay: 'x', profile: 'sebas' }, {}), /either/)
+  assert.throws(() => resolveOverlay({ profile: 'nope' }, {}), /Unknown profile: nope \(available: sebas/)
+  assert.throws(() => resolveOverlay({ profile: '../x' }, {}), /Unknown profile/, 'a profile name cannot escape the profiles folder')
+})
+
+test('every shipped profile installs and uninstalls cleanly, with valid skills', () => {
+  for (const name of fs.readdirSync(path.join(ROOT, 'profiles'))) {
+    const home = makeHome('h-profile-' + name)
+    run(opts(home, { overlay: path.join(ROOT, 'profiles', name) }), quiet)
+    for (const n of fs.readdirSync(path.join(ROOT, 'profiles', name, 'skills'))) {
+      const t = fs.readFileSync(path.join(home, 'skills', n, 'SKILL.md'), 'utf8')
+      assert.match(t, new RegExp(`^---\\r?\\nname: ${n}\\r?\\n`)); assert.match(t, /\ndescription: .{20,}/)
+    }
+    run(opts(home, { overlay: path.join(ROOT, 'profiles', name), uninstall: true }), quiet)
+    assert.ok(!fs.existsSync(path.join(home, 'skills', fs.readdirSync(path.join(ROOT, 'profiles', name, 'skills'))[0])))
+  }
+})
+
+test('two overlays applied one after the other both stay installed, and one uninstall removes both', () => {
+  const home = makeHome('h-two'); const a = makeOverlay('overlay-a'); const b = path.join(tmp, 'overlay-b')
+  skill(path.join(b, 'skills'), 'second-skill')
+  write(path.join(b, 'settings.fragment.json'), JSON.stringify({ permissions: { deny: ['Read(~/.second/**)'] } }))
+  run(opts(home, { overlay: a }), quiet); run(opts(home, { overlay: b }), quiet)
+  assert.ok(fs.existsSync(path.join(home, 'skills', 'overlay-skill')) && fs.existsSync(path.join(home, 'skills', 'second-skill')))
+  const s = JSON.parse(fs.readFileSync(path.join(home, 'settings.json'), 'utf8'))
+  assert.ok(s.permissions.deny.includes('Read(~/.private/**)') && s.permissions.deny.includes('Read(~/.second/**)'))
+  run(opts(home, { uninstall: true }), quiet)
+  assert.ok(!fs.existsSync(path.join(home, 'skills', 'overlay-skill')) && !fs.existsSync(path.join(home, 'skills', 'second-skill')))
+  assert.ok(!(JSON.parse(fs.readFileSync(path.join(home, 'settings.json'), 'utf8')).permissions || {}).deny, 'all deny rules added by either run are gone')
 })
 
 test('a missing overlay folder is an error, not a silent skip', () => {

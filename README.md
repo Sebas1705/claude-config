@@ -58,7 +58,9 @@ node install.mjs [options]
   --uninstall        remove what was installed, and the settings/CLAUDE.md entries it added
   --home <dir>       Claude folder (default: $CLAUDE_CONFIG_DIR or ~/.claude)
   --only a,b         install only these sources (ids from sources.lock.json)
-  --overlay <dir>    apply a private overlay on top (see docs/CUSTOMIZING.md)
+  --overlay <dir>    apply an overlay folder on top (see docs/CUSTOMIZING.md)
+  --profile <name>   apply a published profile from profiles/ (for example: --profile sebas)
+  --no-overlay       ignore any overlay, including $CLAUDE_CONFIG_OVERLAY
   --no-hook          do not register the superpowers session-start hook
   --no-claude-md     do not touch CLAUDE.md
   --retire           move the skills listed under "retire" (from an overlay) to skills-removed/
@@ -80,7 +82,9 @@ Your own `CLAUDE.md`, skills, extra deny rules, hook settings and extra third-pa
 node install.mjs --overlay ../my-claude-overlay
 ```
 
-A working example you can copy is in [`examples/overlay/`](examples/overlay). Full guide: [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md).
+Two ready-made examples: [`examples/overlay/`](examples/overlay) is a minimal template to copy, and [`profiles/sebas/`](profiles/sebas) is the author's own setup, published as a real profile (`node install.mjs --profile sebas`).
+
+To make an overlay the **default on your own machines** without any flag, point the `CLAUDE_CONFIG_OVERLAY` environment variable at it; `--no-overlay` ignores it. Full guide: [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md).
 
 ## Safety model
 
