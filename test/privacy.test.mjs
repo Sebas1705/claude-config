@@ -30,3 +30,21 @@ test('no published file holds a personal path, e-mail address or token-looking s
   const hits = files.filter(f => f !== 'test/privacy.test.mjs' && bad.test(fs.readFileSync(path.join(ROOT, f), 'utf8')))
   assert.deepEqual(hits, [])
 })
+
+// Skills should teach how the owner works, learned from whichever project is open, not name specific repositories.
+// The names live in an untracked `.project-names` file (one per line); without it the test is skipped.
+const namesFile = path.join(ROOT, '.project-names')
+const names = fs.existsSync(namesFile) ? fs.readFileSync(namesFile, 'utf8').split(/\r?\n/).map(t => t.trim().toLowerCase()).filter(Boolean) : []
+
+test('skills in profiles/ do not mention specific projects by name', { skip: names.length === 0 && 'no .project-names file (maintainer-only check)' }, () => {
+  const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]))
+  const profiles = path.join(ROOT, 'profiles')
+  const files = fs.readdirSync(profiles).flatMap(p => (fs.existsSync(path.join(profiles, p, 'skills')) ? walk(path.join(profiles, p, 'skills')) : []))
+  assert.ok(files.length >= 4)
+  const hits = []
+  for (const f of files) {
+    const text = fs.readFileSync(f, 'utf8').toLowerCase()
+    for (const n of names) if (new RegExp(`(^|[^a-z0-9])${n.replace(/[-.]/g, '\$&')}([^a-z0-9]|$)`).test(text)) hits.push(`${path.relative(ROOT, f)}: ${n}`)
+  }
+  assert.deepEqual(hits, [])
+})

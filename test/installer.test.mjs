@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { run, mergeClaudeMd, removeClaudeMdBlock, mergeSettings, removeFromSettings, restrictAgent, parseArgs, mergeLock, mergeFragments, resolveOverlay } from '../install.mjs'
+import { run, mergeClaudeMd, removeClaudeMdBlock, mergeSettings, removeFromSettings, restrictAgent, parseArgs, mergeLock, mergeFragments, resolveOverlay, overlayChain } from '../install.mjs'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const quiet = () => {}
@@ -279,6 +279,34 @@ test('two overlays applied one after the other both stay installed, and one unin
   run(opts(home, { uninstall: true }), quiet)
   assert.ok(!fs.existsSync(path.join(home, 'skills', 'overlay-skill')) && !fs.existsSync(path.join(home, 'skills', 'second-skill')))
   assert.ok(!(JSON.parse(fs.readFileSync(path.join(home, 'settings.json'), 'utf8')).permissions || {}).deny, 'all deny rules added by either run are gone')
+})
+
+test('overlay "extends": a private overlay builds on a profile and a sibling folder, the last CLAUDE.md wins', () => {
+  const base = path.join(tmp, 'ext-base'); const priv = path.join(tmp, 'ext-private')
+  skill(path.join(base, 'skills'), 'base-skill'); write(path.join(base, 'CLAUDE.md'), 'BASE RULES\n')
+  write(path.join(base, 'settings.fragment.json'), JSON.stringify({ permissions: { deny: ['Read(~/.base/**)'] } }))
+  skill(path.join(priv, 'skills'), 'private-skill'); write(path.join(priv, 'CLAUDE.md'), 'PRIVATE RULES\n')
+  write(path.join(priv, 'overlay.json'), JSON.stringify({ extends: ['profile:sebas', '../ext-base'], retire: { skills: ['old-skill'] } }))
+  const chain = overlayChain(priv)
+  assert.deepEqual(chain.map(c => path.basename(c.dir)), ['sebas', 'ext-base', 'ext-private'], 'parents first, in the order listed')
+  const home = makeHome('h-extends')
+  run(opts(home, { overlay: priv, retire: true }), quiet)
+  for (const n of ['adaptive-ui', 'base-skill', 'private-skill']) assert.ok(fs.existsSync(path.join(home, 'skills', n, 'SKILL.md')), n)
+  const md = fs.readFileSync(path.join(home, 'CLAUDE.md'), 'utf8')
+  assert.match(md, /PRIVATE RULES/); assert.doesNotMatch(md, /BASE RULES/)
+  const s = JSON.parse(fs.readFileSync(path.join(home, 'settings.json'), 'utf8'))
+  assert.ok(s.permissions.deny.includes('Read(~/.base/**)'), 'deny rules from every level apply')
+  assert.ok(fs.existsSync(path.join(home, 'skills-removed', 'old-skill')), 'retire list of the last overlay applies')
+})
+
+test('overlay "extends" rejects loops, unknown targets and a missing folder', () => {
+  const a = path.join(tmp, 'loop-a'); const b = path.join(tmp, 'loop-b')
+  write(path.join(a, 'overlay.json'), JSON.stringify({ extends: ['../loop-b'] })); write(path.join(b, 'overlay.json'), JSON.stringify({ extends: ['../loop-a'] }))
+  assert.throws(() => overlayChain(a), /loops back/)
+  const c = path.join(tmp, 'bad-ref'); write(path.join(c, 'overlay.json'), JSON.stringify({ extends: ['profile:nope'] }))
+  assert.throws(() => overlayChain(c), /Unknown profile/)
+  write(path.join(tmp, 'gone-ref', 'overlay.json'), JSON.stringify({ extends: ['../does-not-exist'] }))
+  assert.throws(() => overlayChain(path.join(tmp, 'gone-ref')), /Overlay folder not found/)
 })
 
 test('a missing overlay folder is an error, not a silent skip', () => {

@@ -74,6 +74,23 @@ export function resolveOverlay(opts, env = process.env) {
   return null
 }
 
+/**
+ * Expands an overlay into the folders to apply, parents first. An overlay.json may say "extends": ["profile:<name>", "../other"];
+ * a profile is a folder under profiles/, a path is relative to the overlay that names it. Later folders win over earlier ones.
+ */
+export function overlayChain(dir, seen = [], depth = 0) {
+  if (!fs.existsSync(dir)) throw new Error(`Overlay folder not found: ${dir}`)
+  if (depth > 5) throw new Error(`Overlay "extends" is nested too deeply at ${dir}`)
+  if (seen.includes(dir)) throw new Error(`Overlay "extends" loops back to ${dir}`)
+  const meta = fs.existsSync(path.join(dir, 'overlay.json')) ? readJson(path.join(dir, 'overlay.json')) : {}
+  const parents = []
+  for (const ref of meta.extends || []) {
+    const target = ref.startsWith('profile:') ? resolveOverlay({ profile: ref.slice(8) }, {}) : path.resolve(dir, ref)
+    parents.push(...overlayChain(target, [...seen, dir], depth + 1))
+  }
+  return [...parents.filter(p => p.dir !== dir), { dir, meta }]
+}
+
 export function resolveHome(opts) {
   return path.resolve(opts.home || process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'))
 }
@@ -295,20 +312,19 @@ export function run(opts, log = console.log) {
 
   // An overlay is a private folder with the same layout as config/ (plus an optional overlay.json for extra sources)
   const overlayDir = resolveOverlay(opts)
-  if (overlayDir && !fs.existsSync(overlayDir)) throw new Error(`Overlay folder not found: ${overlayDir}`)
-  const overlayJson = overlayDir && fs.existsSync(path.join(overlayDir, 'overlay.json')) ? readJson(path.join(overlayDir, 'overlay.json')) : null
-  const lock = mergeLock(readJson(lockFile), overlayJson)
+  const chain = overlayDir ? overlayChain(overlayDir) : []
+  const lock = chain.reduce((l, o) => mergeLock(l, o.meta), readJson(lockFile))
   const only = opts.only
   const ids = Object.keys(lock.sources).filter(id => !only || only.includes(id))
   if (only) for (const o of only) if (!lock.sources[o]) throw new Error(`Unknown source: ${o} (have: ${Object.keys(lock.sources).join(', ')})`)
   const ownedBefore = new Set((prev ? prev.installed : []).map(i => i.dest))
 
   log(`${opts.dryRun ? '[dry run] ' : ''}Claude folder: ${home}`)
-  if (overlayDir) log(`Overlay: ${overlayDir}`)
+  if (overlayDir) log(`Overlay: ${chain.map(o => o.dir).join(' <- ')}`)
   const cacheRoot = path.join(os.tmpdir(), 'claude-config-cache')
   const ops = []
   for (const id of ids) ops.push(...planSource(id, lock.sources[id], fetchSource(id, lock.sources[id], cacheRoot, log), home, ownedBefore))
-  ops.push(...planOwn([{ dir: configDir, label: 'own' }, ...(overlayDir ? [{ dir: overlayDir, label: 'overlay' }] : [])], home))
+  ops.push(...planOwn([{ dir: configDir, label: 'own' }, ...chain.map(o => ({ dir: o.dir, label: 'overlay' }))], home))
   decide(ops, ownedBefore)
   result.ops = ops
 
@@ -318,7 +334,7 @@ export function run(opts, log = console.log) {
 
   const hasSuperpowers = ids.includes('superpowers')
   const fragmentOf = d => (fs.existsSync(path.join(d, 'settings.fragment.json')) ? readJson(path.join(d, 'settings.fragment.json')) : null)
-  const fragment = mergeFragments(fragmentOf(configDir) || {}, overlayDir ? fragmentOf(overlayDir) : null)
+  const fragment = chain.reduce((f, o) => mergeFragments(f, fragmentOf(o.dir)), fragmentOf(configDir) || {})
   const settingsFile = path.join(home, 'settings.json')
   const settings = fs.existsSync(settingsFile) ? readJson(settingsFile) : {}
   const probe = mergeSettings(JSON.parse(JSON.stringify(settings)), fragment, home, { noHook: opts.noHook, hasSuperpowers })
@@ -334,7 +350,7 @@ export function run(opts, log = console.log) {
 
   const claudeMd = path.join(home, 'CLAUDE.md')
   // The overlay's CLAUDE.md replaces the default one
-  const mdSource = [overlayDir && path.join(overlayDir, 'CLAUDE.md'), path.join(configDir, 'CLAUDE.md')].find(f => f && fs.existsSync(f))
+  const mdSource = [...chain.map(o => path.join(o.dir, 'CLAUDE.md')).reverse(), path.join(configDir, 'CLAUDE.md')].find(f => fs.existsSync(f))
   if (!opts.noClaudeMd && mdSource) fs.writeFileSync(claudeMd, mergeClaudeMd(fs.existsSync(claudeMd) ? fs.readFileSync(claudeMd, 'utf8') : null, fs.readFileSync(mdSource, 'utf8')))
 
   const added = mergeSettings(settings, fragment, home, { noHook: opts.noHook, hasSuperpowers })

@@ -117,7 +117,19 @@ See the rule table in the [README](../README.md#the-guard-hook).
 
 ## Several overlays
 
-One overlay is applied per run. To combine a public profile with private additions, make the private overlay start from a copy of the profile, or keep the shared part in the profile and run the installer twice with different `--overlay` values (the second run adds its files and rules; `CLAUDE.md` is replaced by the last overlay that has one).
+One overlay is applied per run, but an overlay can **extend** others, so a private overlay does not have to copy a public profile. In its `overlay.json`:
+
+```json
+{ "extends": ["profile:sebas", "../shared-rules"] }
+```
+
+- `profile:<name>` is a folder under `profiles/`; any other entry is a path, relative to the overlay that names it.
+- Parents are applied first, in the order listed, then the overlay itself. Files with the same name: the later one wins. Deny rules and hooks from every level are united. `CLAUDE.md` is the one from the last level that has one. The retire list and extra sources are merged.
+- Loops and nesting deeper than 5 levels are errors.
+
+That is how the author keeps skills in a public profile and only the private details (a different `CLAUDE.md`, extra deny rules, private project notes) in a private overlay.
+
+You can also run the installer twice with different `--overlay` values: the second run adds its files and rules to the first, and `CLAUDE.md` is replaced by the last overlay that has one.
 
 ## Fork instead?
 

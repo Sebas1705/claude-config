@@ -1,61 +1,52 @@
 ---
 name: sebas-design-system
-description: Use when designing or changing UI in any of Sebas' projects (Haltera, Owlsplit, YouKnow, Omni-Impostor, Folio editor, portfolio carreerV2, Nimbo, WinForge, Templetry) - colors, typography, shapes, spacing, icons, brand tokens, themes, strings and motion. Gives the shared rules, the token pipeline and each project's palette.
+description: Use when designing or changing UI in any of the owner's apps or sites - colors, typography, shapes, spacing, icons, brand tokens, themes, strings and motion. Gives the shared rules and the token pipeline, and tells you to learn each project's own brand files first.
 ---
 
-# Sebas' design system
+# Design system: how the owner's projects are designed
 
-Before touching UI, read the project's own spec: `docs/BRAND.md`, `docs/DESIGN_SYSTEM.md` (Owlsplit), `docs/design.md` (Omni-Impostor), `brand/tokens.json`, `templetry/wiki/brand/guidelines.md`. The project wins over this file. Colors, sizes and counts below were read from the repos on 2026-11-09; re-check them before relying on one.
+The project in front of you always wins. These are the habits shared by the owner's apps and sites; where a project has its own spec, follow that and treat this as the default for gaps.
 
-## Principles shared across the projects
-1. **Material 3 is the base** on every Android/KMP app, with a custom theme object that maps the brand to M3 roles (`AppTheme`, `OwlsplitTheme`, `CareerTheme`, `CareTheme`, `DemoTheme`). Never raw Material defaults.
-2. **One accent, used sparingly** (Owlsplit "single accent", Templetry "brass is spent, not sprayed", WinForge "ember lights only what is done or chosen").
-3. **Accent for text differs from accent for fills** (`accentText` vs `accent`, `onAccent`). Record the contrast ratio. Amber/yellow is fill only.
-4. **Semantic colors are separate tokens** (success, warning, error). Red is reserved: never for debts in Owlsplit. Never encode meaning in hue alone.
-5. **Light and dark are both first-class**, following the system. Web: `prefers-color-scheme` plus an optional manual override (`.dark` class, or `:root[data-theme]` with the `:root:not([data-theme='light'])` pattern).
-6. **The logo appears only on icon, splash, empty/welcome states and credits**, never as a mascot inside working screens.
-7. Primary content (numbers, the thing the user came for) is the biggest element; sentence-case, friendly, direct text; errors say what happened and what to do.
+## 1. Discover first (before touching UI)
+Read, in this order, whatever exists: the brand or design doc (`docs/BRAND.md`, `docs/DESIGN_SYSTEM.md`, `docs/design.md`, a wiki `brand/` section), the token file (`brand/tokens.json`), the theme code (`Theme.kt`, `Color.kt`, `Type.kt`, `Shape.kt`, a CSS `:root` block, a Tailwind `@theme`), the string resources, and the agent contract (`AGENTS.md`). Note the accent, the scales, the fonts, how dark mode is chosen and how strings are named. Use those values; never invent a color or a size the project already defines.
 
-## Token pipeline (Haltera and Owlsplit; copy it for new apps)
-`brand/tokens.json` (colors light/dark, logo geometry, fonts) is the single source. It feeds the Kotlin tokens (`BrandTokensTest` fails if they differ), the icons and splash (`scripts/brand.mjs [--png|--check]`, `--check` runs in CI) and the web CSS variables (Owlsplit: `--os-*` kebab-case). **Never hand-edit generated files.** To change a color: edit `tokens.json`, regenerate, run the test. Haltera's `tokens.json` is the template for a new project.
+## 2. Principles
+1. **One accent, used sparingly.** It marks what is chosen or done, not decoration.
+2. **Accent for text differs from accent for fills** (`accent`, `onAccent`, `accentText`). Check contrast and write the ratio down. Amber and yellow are fill-only.
+3. **Semantic colors are separate tokens** (success, warning, error). Red is reserved for real errors and never used for neutral facts such as a debt or a status. Never carry meaning in hue alone.
+4. **Light and dark are both first-class** and follow the system. On the web, `prefers-color-scheme` plus an optional manual override (`:root[data-theme]` or a `.dark` class, with the `:root:not([data-theme='light'])` pattern); wrap theme storage in try/catch.
+5. **The logo lives on icon, splash, empty states and credits**, never as a mascot inside working screens.
+6. The primary content (the number, the thing the user came for) is the biggest element. Text is sentence case, friendly and direct; an error says what happened and what to do.
+7. Material 3 is the base on Android and KMP, always behind a custom theme object that maps the brand to M3 roles. Never ship raw Material defaults.
 
-## Scales
-- Shapes 4/8/12/16 plus 24 or 28 dp (Haltera 4/8/12/16/28, Owlsplit container 16, control 12, pill, dialog 24).
-- Spacing 4-8-12-16-24-32 dp (Owlsplit `Spacing`, Omni `AppDimens.spacing`). YouKnow differs (6-12-24-32-48): keep each project's own.
-- Touch target 48 dp, list row 56, primary button 52 (Owlsplit `Sizes`). Web public sites 44 px (`min-h-11`).
-- No shadows when background/surface contrast is enough; press feedback follows the visible shape.
+## 3. Token pipeline (use it for any new app)
+One source of truth, `brand/tokens.json` (colors light and dark, logo geometry, fonts). It generates the Kotlin tokens (a test fails if they differ), the icons and splash (a script with a `--check` mode that CI runs) and the web CSS variables. **Never hand-edit generated files**: change the JSON, regenerate, run the check. Projects that only have a theme file should still keep brand colors in one place.
 
-## Typography
-Bundled, OFL-licensed fonts: display + body (+ mono for data), **tabular figures (`tnum`) for numbers**. Haltera Barlow Semi Condensed + Inter; Owlsplit Inter; carreerV2 Space Grotesk / Inter / JetBrains Mono; Nimbo and WinForge Bricolage Grotesque for display. Never rely on system fonts for brand text.
+## 4. Scales (defaults when the project has none)
+- Shapes 4 / 8 / 12 / 16 plus 24 or 28 dp.
+- Spacing 4 / 8 / 12 / 16 / 24 / 32 dp.
+- Touch target 48 dp (44 px on the web), list row 56, primary button 52.
+- No shadows when background and surface already contrast; press feedback follows the visible shape.
 
-## Per-platform recipes
-- **Compose / KMP:** `AppTheme(darkTheme = isSystemInDarkTheme())` + `ColorScheme` mapping + `Shapes` + `Typography` + a `CompositionLocal` for brand extras. Components live in `core:ui` and never hold hard-coded text. Every component gets light and dark previews and a screenshot test (Owlsplit: Roborazzi + `DesignCatalog`). Brand color wins over dynamic color (policy in Haltera/Owlsplit).
-- **SwiftUI / iOS:** only a thin host around the Compose view today (`iosApp/iosApp/ContentView.swift`). Keep it thin; if native views are added, mirror tokens from `tokens.json`.
-- **React web:** CSS custom properties; fonts via `@fontsource` (bundled, works offline); `.skip-link`; theme storage wrapped in try/catch (Nimbo `prefs.ts`). carreerV2 is the only Tailwind v4 project: the "ink" palette is Tailwind's `violet-*`/`purple-*` scales remapped in `src/index.css` (so `violet-600` is the brand `#4A5AF0`), not a class called `ink`.
-- **Wails desktop (Nimbo, WinForge, Templetry desktop):** same CSS-variable approach, dark default, desktop density (24-34 px controls) is a deliberate exception, say so in the change.
+## 5. Typography
+Bundled, OFL-licensed fonts: a display face and a body face (and a mono face for data), **tabular figures (`tnum`) for numbers**, loaded locally (for example `@fontsource`) so the app works offline. Do not rely on system fonts for brand text unless the project chose that deliberately for accessibility.
 
-## Icons and assets
-Adaptive icon + monochrome (themed) layer + PNG mipmaps (Firebase App Distribution cannot read adaptive icons) + iOS 1024 opaque + store 512. No single icon library rule: Owlsplit uses Tabler outline (1.75-2 px, 20/24 dp), Omni Material Outlined; follow the project.
+## 6. By platform
+- **Compose / KMP:** `AppTheme(darkTheme = isSystemInDarkTheme())`, a `ColorScheme` mapping, `Shapes`, `Typography`, and a `CompositionLocal` for brand extras. Shared components live in a UI module and hold no hard-coded text. Every component gets light and dark previews and a screenshot test. The brand color wins over dynamic color.
+- **SwiftUI / iOS:** when iOS is a thin host around the Compose view, keep it thin and let Compose handle insets. If native screens are added, mirror the tokens from the JSON.
+- **React web:** CSS custom properties, bundled fonts, a skip link, visible focus. Tailwind v4 projects remap the scale through `@theme`; others use plain CSS variables.
+- **Desktop shells (Wails):** the same CSS-variable approach, dark by default. Desktop density (24-34 px controls) is a deliberate exception: say so in the change.
 
-## Strings and i18n
-English default + Spanish, **every UI string a resource, same keys in both files**, components receive already-localized strings. Parametrised accessibility strings (`Move %1$s up`). Key naming differs per project (Haltera `<module>_<name>`, YouKnow `feature_<mod>_<name>`, Omni `core_resources_<name>`, Owlsplit unprefixed, carreerV2 nested `section.key`, Nimbo camelCase): follow the project; for a new one use module-prefixed snake_case. Money and number formatting live in common code.
+## 7. Icons and assets
+Adaptive icon + monochrome (themed) layer + PNG mipmaps (App Distribution cannot read adaptive icons) + an opaque 1024 px iOS icon + a 512 px store icon. Follow the icon set the project already uses; do not mix sets.
 
-## Motion
-Purposeful, one animation per interaction, always an `animate=false` path, haptic on confirm. Respect reduced motion: CSS `prefers-reduced-motion` plus framer `useReducedMotion()` on web, `LocalReduceMotion` in Owlsplit. Haltera has about 121 animation call sites and no reduce-motion hook yet.
+## 8. Strings
+English is the default, Spanish is the second language, **every UI string is a resource with the same key in both files**, and components receive already-localized text. Accessibility strings are parametrised (`Move %1$s up`). Follow the project's key naming (module-prefixed snake_case is the default for new code). Money and number formatting live in common code.
 
-## Palettes (verify against the project before use)
-| Project | Palette |
-|---|---|
-| Haltera | iron orange `#FF5A1F` on graphite `#1E2126`; `onAccent` graphite (5.2:1 vs 3.1 with white) |
-| Owlsplit | blue `#3B4BF5`, amber beak `#E8B04B` |
-| Folio editor and carreerV2 | ink indigo `#4A5AF0`, teal `#00A896` |
-| Templetry | Ink & Brass: Ink `#15171e`, Linen `#eae7de`, Brass `#d9a441` (normative: `wiki/brand/guidelines.md`) |
-| WinForge | steel and ember, accent `#ff9f2e` |
-| Nimbo | paper/ink with LED green `#0fae78` |
-| YouKnow, Omni-Impostor | M3 Theme Builder exports, 3 contrast levels x light/dark (Omni blue `#1565C0`, teal `#00796B`) |
-| nanodemo | dark only, bench-panel palette |
+## 9. Motion
+Purposeful: one animation per interaction, a haptic on confirm, and always a no-animation path. Respect reduced motion (CSS `prefers-reduced-motion`, framer `useReducedMotion()`, a reduce-motion flag in Compose).
 
-## Known gaps (do not copy them as if they were rules)
-YouKnow and Omni are not tokenised in JSON; Owlsplit has no window-size handling; icon policy is mixed. Fix them when you touch those areas, with the owner's agreement.
+## 10. Gaps worth fixing when you pass by
+Brand colors duplicated across several files without a test, apps without a contrast test, apps with no window-size handling, mixed icon sets, and animations with no reduce-motion hook. Raise them with the owner; do not rewrite unasked.
 
 Related: `adaptive-ui` for responsive, adaptive and accessibility checks; `frontend-design` for aesthetic direction on new web UI.

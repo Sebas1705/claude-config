@@ -9,6 +9,12 @@ All notable changes to this project are documented here. The format follows [Kee
 - `profiles/sebas`: the author's own setup, sanitised for publication.
 - A privacy test driven by an untracked `.privacy-terms` file, and a check for personal paths, e-mail addresses and tokens in every published file.
 
+- Overlays can `extend` other overlays and profiles (`"extends": ["profile:<name>", "../path"]`), so a private overlay can build on a public profile without copying it.
+- Test that the skills in `profiles/` teach conventions without naming specific projects (names come from an untracked `.project-names` file).
+
+### Changed
+- The `sebas` profile skills now describe how the projects are built and released in general terms, and tell Claude to learn each project's own conventions first.
+
 ### Fixed
 - Uninstall restores retired skills even when their parent folder was pruned.
 
