@@ -12,8 +12,9 @@
  *          --no-claude-md  --retire  --json
  * An overlay is also picked up from $CLAUDE_CONFIG_OVERLAY when none of --overlay/--profile/--no-overlay is given.
  *
- * Third-party sources are fetched at the commits pinned in sources.lock.json. Nothing fetched is ever executed by this
- * script: it only copies files. Node 18+ and git are the only requirements.
+ * Third-party sources are fetched at the commits pinned in sources.lock.json. This script never executes anything it
+ * fetches: it only copies files. (The files include a session-start hook that Claude Code runs later; --no-hook skips it.)
+ * Node 18+ and git are the only requirements.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -103,14 +104,29 @@ function git(args, cwd) {
 }
 
 /** Fetches exactly `commit` of `repo` into a cache folder and returns its path. Verifies the commit afterwards. */
+/** A cache folder private to this user, so another user of a shared machine cannot plant files in it. */
+export function cacheRootFor() {
+  const who = typeof process.getuid === 'function' ? String(process.getuid()) : os.userInfo().username.replace(/[^A-Za-z0-9._-]/g, '_')
+
+  return path.join(os.tmpdir(), `claude-config-cache-${who}`)
+}
+
+/** A cached checkout is reused only if it is ours, at the pinned commit and untouched. */
+function isCacheTrusted(dir, commit) {
+  if (!fs.existsSync(path.join(dir, '.git'))) return false
+  if (typeof process.getuid === 'function' && fs.statSync(dir).uid !== process.getuid()) return false
+  const head = git(['rev-parse', 'HEAD'], dir)
+  if (head.status !== 0 || head.stdout.trim() !== commit) return false
+  const status = git(['status', '--porcelain', '--untracked-files=all'], dir)
+
+  return status.status === 0 && status.stdout.trim() === ''
+}
+
 export function fetchSource(id, src, cacheRoot, log = () => {}) {
   const dir = path.join(cacheRoot, `${id}-${src.commit.slice(0, 12)}`)
-  if (fs.existsSync(path.join(dir, '.git'))) {
-    const head = git(['rev-parse', 'HEAD'], dir)
-    if (head.status === 0 && head.stdout.trim() === src.commit) return dir
-    fs.rmSync(dir, { recursive: true, force: true })
-  }
-  fs.mkdirSync(dir, { recursive: true })
+  if (isCacheTrusted(dir, src.commit)) return dir
+  fs.rmSync(dir, { recursive: true, force: true })
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 })
   log(`  fetching ${id} @ ${src.commit.slice(0, 12)}`)
   for (const args of [['init', '-q'], ['remote', 'add', 'origin', src.repo], ['fetch', '-q', '--depth', '1', 'origin', src.commit], ['checkout', '-q', 'FETCH_HEAD']]) {
     const r = git(args, dir)
@@ -287,7 +303,7 @@ export function removeFromSettings(settings, added) {
   return settings
 }
 
-/** Adds a `tools:` line to review-only agents so they cannot write files or use MCP tools. */
+/** Adds a `tools:` line to review-only agents so they have no edit or write tool and no MCP tools (Bash can still write files). */
 export function restrictAgent(text, tools) {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)
   if (!m || /^tools:/m.test(m[1])) return null
@@ -321,7 +337,7 @@ export function run(opts, log = console.log) {
 
   log(`${opts.dryRun ? '[dry run] ' : ''}Claude folder: ${home}`)
   if (overlayDir) log(`Overlay: ${chain.map(o => o.dir).join(' <- ')}`)
-  const cacheRoot = path.join(os.tmpdir(), 'claude-config-cache')
+  const cacheRoot = cacheRootFor()
   const ops = []
   for (const id of ids) ops.push(...planSource(id, lock.sources[id], fetchSource(id, lock.sources[id], cacheRoot, log), home, ownedBefore))
   ops.push(...planOwn([{ dir: configDir, label: 'own' }, ...chain.map(o => ({ dir: o.dir, label: 'overlay' }))], home))

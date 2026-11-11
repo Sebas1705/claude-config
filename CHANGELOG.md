@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-11-11
+
+### Security
+- The guard hook now parses commands instead of searching for text: quotes, `VAR=x` prefixes, `sudo`/`env`, `git -C`/`-c`, push refspecs and `bash -c "..."` (three levels). It closes the bypasses an audit found: `git push origin +main`, `-fu`, `:main`, `--mirror`, `git -c core.hooksPath=...`, `FOO=1 git commit -n`, `rm -rf /*`, `rm -rf ~/`, `rm -r -f /`, and it no longer blocks `feature/main-menu`.
+- New rule `blockSecretReads`: `cat .env`, `cp release.jks`, `grep ... ~/.aws/credentials` and similar through the shell. The `Read(...)` deny rules only cover the Read tool.
+- The installer's cache is private to the user, and a cached checkout is reused only if it is unmodified and at the pinned commit.
+
+### Fixed
+- The Windows-path check of the privacy test never matched a real path.
+- Documentation claimed more than the code does: the installer "executes nothing" (it registers a third-party session-start hook that runs later), review-only agents "cannot write files" (Bash can), and the deny rules "stop reading secrets" (only the Read tool).
+
+### Added
+- `dependabot.yml` for the GitHub Actions used by CI, and CI actions pinned by commit SHA.
+
 ## [1.1.0] - 2026-11-09
 
 ### Added

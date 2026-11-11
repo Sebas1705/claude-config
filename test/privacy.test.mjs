@@ -24,10 +24,19 @@ test('published files contain none of the terms in .privacy-terms', { skip: term
   assert.deepEqual(hits, [])
 })
 
+const PERSONAL = /[A-Za-z]:[\\/]Users[\\/][A-Za-z]|\/Users\/[a-z]+\/|\/home\/[a-z]+\/|@gmail\.com|ghp_[0-9A-Za-z]{20,}|github_pat_|AIza[0-9A-Za-z_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY/
+
+test('the personal-data pattern matches real paths, addresses and keys (and not ordinary text)', () => {
+  // A first version of the Windows-path alternative was mis-escaped and never matched anything.
+  for (const hit of ['C:\\Users\\someone\\x', 'D:/Users/someone/x', '/Users/someone/Documents/', '/home/someone/.ssh/', 'someone@gmail.com', 'ghp_' + 'a'.repeat(24), 'BEGIN RSA PRIVATE KEY'])
+    assert.match(hit, PERSONAL, hit)
+  for (const fine of ['C:\\Program Files\\x', 'users are listed here', 'see /home/ for details', 'user@example.com'])
+    assert.doesNotMatch(fine, PERSONAL, fine)
+})
+
 test('no published file holds a personal path, e-mail address or token-looking string', () => {
   const files = spawnSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8' }).stdout.split('\0').filter(Boolean)
-  const bad = /[A-Za-z]:\Users\[A-Za-z]|\/Users\/[a-z]+\/|\/home\/[a-z]+\/|@gmail\.com|ghp_[0-9A-Za-z]{20,}|github_pat_|AIza[0-9A-Za-z_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY/
-  const hits = files.filter(f => f !== 'test/privacy.test.mjs' && bad.test(fs.readFileSync(path.join(ROOT, f), 'utf8')))
+  const hits = files.filter(f => f !== 'test/privacy.test.mjs' && PERSONAL.test(fs.readFileSync(path.join(ROOT, f), 'utf8')))
   assert.deepEqual(hits, [])
 })
 

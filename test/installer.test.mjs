@@ -5,11 +5,11 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { run, mergeClaudeMd, removeClaudeMdBlock, mergeSettings, removeFromSettings, restrictAgent, parseArgs, mergeLock, mergeFragments, resolveOverlay, overlayChain } from '../install.mjs'
+import { run, mergeClaudeMd, removeClaudeMdBlock, mergeSettings, removeFromSettings, restrictAgent, parseArgs, mergeLock, mergeFragments, resolveOverlay, overlayChain, cacheRootFor } from '../install.mjs'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const quiet = () => {}
-let tmp, sp, pl, lockFile
+let tmp, sp, pl, lockFile, spCommit
 
 const sh = (cwd, ...args) => { const r = spawnSync('git', args, { cwd, encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim() }
 const write = (f, t) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, t) }
@@ -25,6 +25,7 @@ before(() => {
   skill(path.join(sp, 'skills'), 'using-superpowers'); skill(path.join(sp, 'skills'), 'brainstorming')
   write(path.join(sp, 'hooks', 'run-hook.cmd'), ': noop\n'); write(path.join(sp, 'hooks', 'session-start'), '#!/usr/bin/env bash\n')
   const spSha = commit(sp)
+  spCommit = spSha
   repo(pl)
   write(path.join(pl, 'plugins', 'p1', 'agents', 'code-reviewer.md'), '---\nname: code-reviewer\nmodel: opus\ndescription: reviews\n---\nP1\n')
   write(path.join(pl, 'plugins', 'p1', 'agents', 'helper.md'), '---\nname: helper\ndescription: helps\n---\nP1\n')
@@ -307,6 +308,19 @@ test('overlay "extends" rejects loops, unknown targets and a missing folder', ()
   assert.throws(() => overlayChain(c), /Unknown profile/)
   write(path.join(tmp, 'gone-ref', 'overlay.json'), JSON.stringify({ extends: ['../does-not-exist'] }))
   assert.throws(() => overlayChain(path.join(tmp, 'gone-ref')), /Overlay folder not found/)
+})
+
+test('a tampered cache checkout is thrown away and fetched again, never installed', () => {
+  const home = makeHome('h-cache-1')
+  run(opts(home), quiet)
+  const cached = path.join(cacheRootFor(), 'superpowers-' + spCommit.slice(0, 12), 'skills', 'brainstorming', 'SKILL.md')
+  assert.ok(fs.existsSync(cached), 'the source was cached under the per-user folder')
+  fs.writeFileSync(cached, 'TAMPERED')
+  const home2 = makeHome('h-cache-2')
+  fs.rmSync(path.join(home2, 'skills', 'brainstorming'), { recursive: true }) // the fixture's own skill would be kept
+  run(opts(home2), quiet)
+  assert.doesNotMatch(fs.readFileSync(path.join(home2, 'skills', 'brainstorming', 'SKILL.md'), 'utf8'), /TAMPERED/)
+  assert.match(cacheRootFor(), /claude-config-cache-/)
 })
 
 test('a missing overlay folder is an error, not a silent skip', () => {

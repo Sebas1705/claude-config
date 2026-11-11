@@ -5,12 +5,12 @@ A reproducible, reviewable [Claude Code](https://claude.com/claude-code) setup y
 It gives you a sensible baseline instead of an empty `~/.claude`:
 
 - **A guard hook** that stops a few classic accidents before they run: `git commit --no-verify`, force-pushing to `main`/`master`, staging keystores or `.env` files, `rm -rf /`.
-- **Deny rules** so Claude cannot read `.env` files, `~/.ssh`, `~/.aws`, `~/.config/gh`, keystores or service-account keys.
+- **Deny rules** that stop Claude's *Read tool* from opening `.env` files, `~/.ssh`, `~/.aws`, `~/.config/gh`, keystores or service-account keys. Reading the same files through the shell (`cat .env`) is a different path: the guard hook catches the common forms, as a heuristic, not a boundary.
 - **Method skills** from [superpowers](https://github.com/obra/superpowers): brainstorming, planning, test-driven development, systematic debugging, code review, verification before claiming success, git worktrees.
 - **Official skills** from [anthropics/skills](https://github.com/anthropics/skills) (`skill-creator`, `claude-api`, `mcp-builder`, `webapp-testing`, `frontend-design`).
 - **Architecture, security, docs, database, accessibility and .NET plugins** from [wshobson/agents](https://github.com/wshobson/agents) (14 plugins: agents, commands and skills).
 - **Security skills** from [Trail of Bits](https://github.com/trailofbits/skills) (`sharp-edges`, `differential-review`, `supply-chain-risk-auditor`, `agentic-actions-auditor`).
-- **Limited tools for review-only agents** (code reviewer, architect review, security auditors, threat modeling, UI validator): `Read, Grep, Glob, Bash`, so a reviewer cannot edit files.
+- **Limited tools for review-only agents** (code reviewer, architect review, security auditors, threat modeling, UI validator): `Read, Grep, Glob, Bash`, so a reviewer has no edit or write tool. Bash can still write files, so this narrows what a reviewer does, it is not a sandbox.
 
 Everything third-party is **pinned to an exact commit** and **fetched at install time**, never copied into this repository. You can see the full plan before anything changes.
 
@@ -92,7 +92,7 @@ Skills, agents and commands are instructions that Claude follows with *your* per
 
 - **Pinned, not floating.** Each source in [`sources.lock.json`](sources.lock.json) names a full 40-character commit SHA. After fetching, the installer verifies it got exactly that commit. A moved branch or a rewritten upstream cannot change what you receive.
 - **Reviewed before pinning.** `reviewed` in the lock is the date the content at that commit was read, with attention to hooks, scripts and network access. Read it yourself too: it is a few hundred small markdown files.
-- **No execution of fetched code.** The installer copies files. The only things that execute later are the hooks you can read in `config/hooks/` and the session-start hook from superpowers.
+- **The installer executes nothing it fetches.** It only copies files. What runs later, when Claude Code starts a session or a command, is the guard hook in `config/hooks/` and, if you keep it, the session-start hook of superpowers (a third-party script that runs at the start of every session; it was read at the pinned commit, and `--no-hook` skips it).
 - **Nothing is vendored.** Third-party licenses differ (MIT, CC BY-SA 4.0, and one repository with no declared license), so they are downloaded from their own repositories, not redistributed here.
 - **Local only.** The guard hook has no network access and writes no files.
 
@@ -104,11 +104,12 @@ More in [SECURITY.md](SECURITY.md). Technical details of every file and format: 
 
 | Rule | Default | Blocks |
 |---|---|---|
-| `blockNoVerify` | on | `git commit --no-verify` and `-n` |
-| `blockForcePush` | on | `git push --force` / `-f` to a protected branch (`--force-with-lease` is allowed) |
+| `blockNoVerify` | on | `git commit --no-verify` and `-n`, and `git -c core.hooksPath=...`, which switches the hooks off the same way |
+| `blockForcePush` | on | force (`--force`, `-f`, `-fu`, `+branch`, `--force-with-lease`) or delete (`:branch`, `--delete`) pushes to a protected branch, `--mirror`, and a bare `git push --force` that names no branch (it cannot be checked). Branch names are matched exactly, so `feature/main-menu` is fine |
 | `blockSecretStaging` | on | `git add` of `.jks`, `.keystore`, `.p12`, `.pfx`, `.pem`, `id_rsa`, `.env*`, service-account JSON |
-| `blockRmRoot` | on | `rm -rf` on `/`, `~`, `$HOME` or a drive root |
-| `blockCommitTrailers` | **off** | commits with a `Co-Authored-By` or "Generated with" trailer (a preference, so opt-in) |
+| `blockSecretReads` | on | `cat`, `head`, `cp`, `grep`, `base64`, `curl @file`... on `.env*` (not `.env.example`), `~/.ssh`, `~/.aws`, `~/.doppler`, `~/.config/gh`, keystores and key files |
+| `blockRmRoot` | on | recursive `rm` (and `Remove-Item -Recurse`) of `/`, `/*`, `~`, `$HOME`, a drive root or a top-level system folder |
+| `blockCommitTrailers` | **off** | commits with a `Co-Authored-By` or "Generated with" trailer (a preference, so opt-in); with it on, `git commit -F file` is refused too, because the message cannot be read |
 | `protectedBranches` | `main`, `master` | which branches the force-push rule protects |
 
 Change a rule with a `guard.config.json` next to the hook (an overlay can ship one):
@@ -117,7 +118,7 @@ Change a rule with a `guard.config.json` next to the hook (an overlay can ship o
 { "blockCommitTrailers": true, "protectedBranches": ["main", "release"] }
 ```
 
-The hook is a guardrail against accidents, not a security boundary: a determined command can get around string matching. Use it together with Claude Code's own permission system.
+The hook parses the command (quotes, `VAR=x` prefixes, `sudo`/`env`, `git -C`/`-c`, push refspecs, `bash -c "..."` up to three levels) rather than searching for text. It still cannot follow variables, scripts it does not see, or deliberate obfuscation. It is a guardrail against accidents, not a security boundary: use it together with Claude Code's own permission system.
 
 ## Updating the pinned sources
 

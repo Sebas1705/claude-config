@@ -27,7 +27,7 @@
 | `skills.from` / `skills.names` | Folder (relative to the repo root) holding skill folders. `"*"` means every folder that contains a `SKILL.md`; otherwise a list of names. Copied to `<home>/skills/<name>` |
 | `support` | Extra folders copied verbatim to `<home>/<to>`. Used for files a hook needs (superpowers' hook reads its own `using-superpowers` skill) |
 | `plugins` | A plugin-style layout: `<from>/<name>/{agents,commands,skills}`. Agents and commands (`*.md`) go to `<home>/agents` and `<home>/commands`, skills to `<home>/skills`. With `skillsOnly: true` only the skills are copied (for plugins whose commands need the plugin runtime) |
-| `agentToolRestrictions` | After install, each listed agent that exists and has no `tools:` line gets one, so it cannot edit files |
+| `agentToolRestrictions` | After install, each listed agent that exists and has no `tools:` line gets one, so it has no edit or write tool (Bash can still write files) |
 
 Name clashes: if two plugins in one run ship a file with the same name and different content, the later one is installed as `<plugin>-<file>`. If a file with that name already exists and is not ours, it is left alone (`kept`).
 

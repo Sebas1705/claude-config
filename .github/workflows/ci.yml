@@ -12,18 +12,24 @@ jobs:
   test:
     name: Node ${{ matrix.node }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      PRIVACY_TERMS: ${{ secrets.PRIVACY_TERMS }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node: [18, 20, 22]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node }}
       - name: Git identity for the fixture repositories
         run: |
           git config --global user.email "ci@example.invalid"
           git config --global user.name "CI"
+      - name: Privacy terms (optional repository secret PRIVACY_TERMS, one term per line)
+        if: env.PRIVACY_TERMS != ''
+        shell: bash
+        run: echo "$PRIVACY_TERMS" > .privacy-terms
       - run: npm test

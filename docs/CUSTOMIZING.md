@@ -86,7 +86,7 @@ Files that already exist in your Claude folder and were not installed by this to
 
 - **`sources`** adds third-party sources (same schema as `sources.lock.json`, see [REFERENCE.md](REFERENCE.md)). A source with the same id as a default one replaces it.
 - **`retire.skills`** lists skills already in your Claude folder that you want moved aside when you run with `--retire`. They go to `<home>/skills-removed/`, never deleted, and `--uninstall` puts them back.
-- **`agentToolRestrictions.agents`** adds agents that get `tools: Read, Grep, Glob, Bash` in their front matter, so they cannot edit files. The tool list itself can be changed with `"tools"`.
+- **`agentToolRestrictions.agents`** adds agents that get `tools: Read, Grep, Glob, Bash` in their front matter, so they have no edit or write tool (Bash can still write files). The tool list itself can be changed with `"tools"`.
 
 ## Placeholders in `settings.fragment.json`
 
